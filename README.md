@@ -4,7 +4,7 @@
 
 ---
 
-## Características Principales
+## 🚀 Características Principales
 
 ### 1. 🧊 Motor de Visualización 3D
 - Renderizado técnico utilizando transformaciones CSS3.
@@ -27,7 +27,7 @@
 
 ---
 
-## Tecnologías Utilizadas
+## 🛠️ Tecnologías Utilizadas
 - **Frontend:** Vanilla JavaScript (ES6+), HTML5 Semántico.
 - **Estilos:** CSS3 Avanzado (Flexbox, Grid, 3D Transforms, Custom Properties).
 - **Librerías Externas:** 
@@ -50,7 +50,7 @@
 
 ---
 
-## Instalación y Ejecución
+## 🔧 Instalación y Ejecución
 No requiere compilación ni servidores complejos.
 1. Clona el repositorio o descarga los archivos.
 2. Abre el archivo `index.html` en cualquier navegador moderno (Chrome, Edge, Firefox).
