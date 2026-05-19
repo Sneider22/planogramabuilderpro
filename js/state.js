@@ -6,6 +6,16 @@ class AppState {
     constructor() {
         this._listeners = {};
 
+        // Stores Logic
+        try {
+            this.stores = JSON.parse(localStorage.getItem('planogram_stores')) || [];
+            if (!Array.isArray(this.stores)) this.stores = [];
+        } catch (e) {
+            this.stores = [];
+        }
+        this.currentStoreId = null;
+        this.currentGondolaId = null;
+
         // Configuración Actual (Actúa como el mueble seleccionado)
         this.gondola = this._getDefaultGondola();
 
@@ -38,10 +48,8 @@ class AppState {
             { id: 'P016', sku: 'SAP-016', name: 'Agua Mineral 500ml', width: 6, height: 20, depth: 6, price: 0.50, color: '#bae6fd', category: 'Bebidas' },
         ];
 
-        // Librería de Presets
-        this.library = JSON.parse(localStorage.getItem('plano_library')) || [
-            { id: 'preset-1', name: 'Góndola Pared Estándar', config: this._getDefaultGondola() }
-        ];
+        // Librería de Presets (Depende de la tienda seleccionada)
+        this.library = [];
 
         this._nextProductId = 10;
         this._buildShelves();
@@ -50,35 +58,78 @@ class AppState {
     _getDefaultGondola() {
         return {
             type: 'pared', // pared, central, cabecera, refrigerado
-            width: 120,
-            height: 200,
-            depth: 48,
-            numShelves: 4,
-            gapBetweenShelves: 40,
-            baseHeight: 12,
+            width: 100,
+            height: 210,
+            depth: 40,
+            numShelves: 5,
+            gapBetweenShelves: 35,
+            baseHeight: 20,
             shelfThickness: 2,
-            shelfDepth: 48,
-            shelfWidth: 120,
+            shelfDepth: 40,
+            shelfWidth: 100,
             shelves: []
         };
     }
 
-    // --- Persistence ---
-    savePreset(name) {
-        const id = 'preset-' + Date.now();
-        const newPreset = {
-            id: id,
+    // --- Store Management ---
+    createStore(name) {
+        const newStore = {
+            id: 'store-' + Date.now(),
             name: name,
-            config: JSON.parse(JSON.stringify(this.gondola))
+            createdAt: Date.now(),
+            library: []
         };
-        this.library.push(newPreset);
-        localStorage.setItem('plano_library', JSON.stringify(this.library));
-        this.emit('library:updated', this.library);
+        this.stores.push(newStore);
+        this._saveStores();
+        return newStore;
     }
 
-    loadPreset(id) {
+    selectStore(id) {
+        this.currentStoreId = id;
+        this.currentGondolaId = null;
+        const store = this.stores.find(s => s.id === id);
+        if (store) {
+            this.library = store.library || [];
+            this.emit('store:selected', store);
+            this.emit('library:updated', this.library);
+        }
+    }
+
+    _saveStores() {
+        localStorage.setItem('planogram_stores', JSON.stringify(this.stores));
+    }
+
+    // --- Gondola Persistence (Auto-save) ---
+    createNewGondola(name = 'Nueva Góndola') {
+        if (!this.currentStoreId) return;
+        const newId = 'gondola-' + Date.now();
+        const newGondolaData = {
+            id: newId,
+            name: name,
+            config: this._getDefaultGondola()
+        };
+        
+        this.library.push(newGondolaData);
+        this.currentGondolaId = newId;
+        this.gondola = JSON.parse(JSON.stringify(newGondolaData.config));
+        this._buildShelves();
+        
+        const store = this.stores.find(s => s.id === this.currentStoreId);
+        if (store) {
+            store.library = this.library;
+            this._saveStores();
+        }
+        
+        this.emit('library:updated', this.library);
+        this.emit('gondola:updated', this.gondola);
+        this.emit('dashboard:update');
+        return newId;
+    }
+
+    loadGondola(id) {
         const preset = this.library.find(p => p.id === id);
         if (preset) {
+            this.currentGondolaId = id;
             this.gondola = JSON.parse(JSON.stringify(preset.config));
             this._buildShelves();
             this.emit('gondola:updated', this.gondola);
@@ -86,25 +137,77 @@ class AppState {
         }
     }
 
-    deletePreset(id) {
-        this.library = this.library.filter(p => p.id !== id);
-        localStorage.setItem('plano_library', JSON.stringify(this.library));
+    duplicateGondola() {
+        if (!this.currentStoreId || !this.currentGondolaId) return;
+        const currentData = this.library.find(p => p.id === this.currentGondolaId);
+        if (!currentData) return;
+        
+        const newId = 'gondola-' + Date.now();
+        const newGondolaData = {
+            id: newId,
+            name: currentData.name + ' (Copia)',
+            config: JSON.parse(JSON.stringify(this.gondola))
+        };
+        
+        this.library.push(newGondolaData);
+        this.currentGondolaId = newId;
+        
+        const store = this.stores.find(s => s.id === this.currentStoreId);
+        if (store) {
+            store.library = this.library;
+            this._saveStores();
+        }
+        
         this.emit('library:updated', this.library);
+        this.emit('gondola:updated', this.gondola);
+        this.emit('dashboard:update');
+    }
+
+    deleteGondola(id) {
+        if (!this.currentStoreId) return;
+        this.library = this.library.filter(p => p.id !== id);
+        
+        const store = this.stores.find(s => s.id === this.currentStoreId);
+        if (store) {
+            store.library = this.library;
+            this._saveStores();
+        }
+        
+        this.emit('library:updated', this.library);
+    }
+
+    _autoSave() {
+        if (!this.currentStoreId || !this.currentGondolaId) return;
+        const preset = this.library.find(p => p.id === this.currentGondolaId);
+        if (preset) {
+            preset.config = JSON.parse(JSON.stringify(this.gondola));
+            const store = this.stores.find(s => s.id === this.currentStoreId);
+            if (store) {
+                store.library = this.library;
+                this._saveStores();
+            }
+        }
     }
 
     // --- Gondola Logic ---
     updateGondola(updates) {
         Object.assign(this.gondola, updates);
+        if (updates.width !== undefined) this.gondola.shelfWidth = updates.width;
+        if (updates.depth !== undefined) this.gondola.shelfDepth = updates.depth;
         
-        // Si cambia el tipo, podemos aplicar ajustes automáticos
-        if (updates.type) {
-            if (updates.type === 'central') this.gondola.shelfDepth = this.gondola.depth * 2;
-            if (updates.type === 'refrigerado') this.gondola.baseHeight = 25; // Murales suelen tener base alta
-        }
-
         this._buildShelves();
+        this._autoSave();
         this.emit('gondola:updated', this.gondola);
         this.emit('dashboard:update');
+    }
+
+    setShelfType(shelfIndex, type) {
+        if (this.gondola.shelves && this.gondola.shelves[shelfIndex]) {
+            this.gondola.shelves[shelfIndex].type = type;
+            this._autoSave();
+            this.emit('gondola:updated', this.gondola);
+            this.emit('dashboard:update');
+        }
     }
 
     _buildShelves() {
@@ -119,6 +222,7 @@ class AppState {
                 id: `shelf-${i}`,
                 index: i,
                 y: yPos,
+                type: oldShelf ? (oldShelf.type || 'plancha') : 'plancha',
                 products: oldShelf ? oldShelf.products : []
             });
         }
@@ -136,6 +240,21 @@ class AppState {
 
     getProductById(id) { return this.products.find(p => p.id === id); }
 
+    getPlacedDimensions(productId, orientation = 0) {
+        const prod = this.getProductById(productId);
+        if (!prod) return { width: 0, height: 0, depth: 0 };
+        
+        let w = prod.width, h = prod.height, d = prod.depth;
+        switch(orientation) {
+            case 1: return { width: h, height: w, depth: d }; // side (xy)
+            case 2: return { width: d, height: h, depth: w }; // depth-facing (xz)
+            case 3: return { width: d, height: w, depth: h }; // depth-facing side
+            case 4: return { width: w, height: d, depth: h }; // top-facing (yz)
+            case 5: return { width: h, height: d, depth: w }; // top-facing side
+            default: return { width: w, height: h, depth: d }; // normal
+        }
+    }
+
     getShelfUsableHeight(shelfIndex) {
         const g = this.gondola;
         const shelf = g.shelves[shelfIndex];
@@ -149,8 +268,14 @@ class AppState {
         const shelf = this.gondola.shelves[shelfIndex];
         if (!shelf) return 0;
         return shelf.products.reduce((sum, p) => {
-            const prod = this.getProductById(p.productId);
-            return sum + (prod ? prod.width * p.facings : 0);
+            if (!p.layers && p.productId) {
+                const dims = this.getPlacedDimensions(p.productId, p.orientation || 0);
+                return sum + (dims.width * (p.facings || 1));
+            }
+            if (!p.layers || p.layers.length === 0) return sum;
+            const baseLayer = p.layers[0];
+            const dims = this.getPlacedDimensions(baseLayer.productId, baseLayer.orientation || 0);
+            return sum + (dims.width * baseLayer.facings);
         }, 0);
     }
 
@@ -158,12 +283,31 @@ class AppState {
         return this.gondola.shelfWidth - this.getShelfUsedWidth(shelfIndex);
     }
 
-    placeProduct(shelfIndex, productId, facings = 1) {
-        const product = this.getProductById(productId);
+    _recalculateShelfX(shelfIndex) {
         const shelf = this.gondola.shelves[shelfIndex];
-        if (!product || !shelf) return { success: false, reason: 'Error interno' };
+        if (!shelf) return;
+        let currentX = 0;
+        shelf.products.forEach(p => {
+            p.x = currentX;
+            if (!p.layers && p.productId) {
+                const dims = this.getPlacedDimensions(p.productId, p.orientation || 0);
+                currentX += dims.width * (p.facings || 1);
+            } else if (p.layers && p.layers.length > 0) {
+                const baseLayer = p.layers[0];
+                const dims = this.getPlacedDimensions(baseLayer.productId, baseLayer.orientation || 0);
+                currentX += dims.width * baseLayer.facings;
+            }
+        });
+    }
 
-        const requiredWidth = product.width * facings;
+    placeProduct(shelfIndex, productId, facings = 1) {
+        const shelf = this.gondola.shelves[shelfIndex];
+        if (!shelf) return { success: false, reason: 'Error interno' };
+
+        const dims = this.getPlacedDimensions(productId, 0);
+        if (dims.width === 0) return { success: false, reason: 'Producto no encontrado' };
+
+        const requiredWidth = dims.width * facings;
         const availableWidth = this.getShelfAvailableWidth(shelfIndex);
         const usableHeight = this.getShelfUsableHeight(shelfIndex);
 
@@ -174,32 +318,63 @@ class AppState {
             };
         }
 
-        if (product.height > usableHeight) {
+        if (dims.height > usableHeight) {
             return { 
                 success: false, 
-                reason: `Producto muy alto. \nAltura: ${product.height}cm \nEspacio libre: ${usableHeight.toFixed(1)}cm` 
+                reason: `Producto muy alto. \nAltura: ${dims.height}cm \nEspacio libre: ${usableHeight.toFixed(1)}cm` 
             };
         }
 
         shelf.products.push({
-            productId: productId,
-            facings: facings,
-            stacks: 1,
-            x: this.getShelfUsedWidth(shelfIndex),
-            placedAt: Date.now()
+            x: 0, // Will be set correctly by recalculate
+            placedAt: Date.now(),
+            layers: [{
+                productId: productId,
+                facings: facings,
+                orientation: 0
+            }]
         });
 
+        this._recalculateShelfX(shelfIndex);
+        this._autoSave();
         this.emit('gondola:updated', this.gondola);
         this.emit('dashboard:update');
         return { success: true };
     }
 
-    stackProduct(shelfIndex, placementIndex) {
+    stackProduct(shelfIndex, placementIndex, newProductId) {
         const shelf = this.gondola.shelves[shelfIndex];
         const p = shelf.products[placementIndex];
-        const prod = this.getProductById(p.productId);
+        if (!p || !p.layers || p.layers.length === 0) return { success: false, reason: 'Pila inválida' };
+
+        // 1. Calculate total width of base layer
+        const baseLayer = p.layers[0];
+        const baseDims = this.getPlacedDimensions(baseLayer.productId, baseLayer.orientation || 0);
+        const baseTotalWidth = baseDims.width * baseLayer.facings;
+
+        // 2. Calculate dimensions of new product
+        const newDims = this.getPlacedDimensions(newProductId, 0);
+        if (newDims.width === 0) return { success: false, reason: 'Producto no encontrado' };
+
+        // 3. Determine how many facings of new product fit in baseTotalWidth
+        const newFacings = Math.floor(baseTotalWidth / newDims.width);
+
+        if (newFacings < 1) {
+            return {
+                success: false,
+                reason: `El producto es muy ancho para apilarse aquí. \nAncho disponible: ${baseTotalWidth.toFixed(1)}cm \nAncho producto: ${newDims.width}cm`
+            };
+        }
+
+        // 4. Check total stack height against shelf usable height
         const usableHeight = this.getShelfUsableHeight(shelfIndex);
-        const nextStackHeight = prod.height * (p.stacks + 1);
+        let currentStackHeight = 0;
+        p.layers.forEach(layer => {
+            const layerDims = this.getPlacedDimensions(layer.productId, layer.orientation || 0);
+            currentStackHeight += layerDims.height;
+        });
+
+        const nextStackHeight = currentStackHeight + newDims.height;
 
         if (nextStackHeight > usableHeight) {
             return { 
@@ -207,15 +382,106 @@ class AppState {
                 reason: `Sin espacio vertical. \nAltura proyectada: ${nextStackHeight}cm \nEspacio libre: ${usableHeight.toFixed(1)}cm` 
             };
         }
-        p.stacks++;
+
+        // 5. Add new layer
+        p.layers.push({
+            productId: newProductId,
+            facings: newFacings,
+            orientation: 0
+        });
+
+        this._autoSave();
         this.emit('gondola:updated', this.gondola);
         this.emit('dashboard:update');
         return { success: true };
     }
 
-    removeFromShelf(sIdx, pIdx) {
-        this.gondola.shelves[sIdx].products.splice(pIdx, 1);
+    removeFromShelf(sIdx, pIdx, lIdx = undefined) {
+        const p = this.gondola.shelves[sIdx].products[pIdx];
+        if (!p || !p.layers) return;
+
+        if (lIdx === undefined || lIdx === 0) {
+            // Remove whole placement if base layer is deleted or no layer specified
+            this.gondola.shelves[sIdx].products.splice(pIdx, 1);
+        } else {
+            // Remove specific layer
+            p.layers.splice(lIdx, 1);
+        }
+
+        this._recalculateShelfX(sIdx);
+        this._autoSave();
         this.emit('gondola:updated', this.gondola);
         this.emit('dashboard:update');
+    }
+
+    rotateProduct(sIdx, pIdx, lIdx) {
+        const p = this.gondola.shelves[sIdx].products[pIdx];
+        if (!p || !p.layers) return { success: false };
+        const layer = p.layers[lIdx];
+        if (!layer) return { success: false };
+        
+        layer.orientation = ((layer.orientation || 0) + 1) % 6;
+        
+        if (lIdx > 0) {
+            const baseLayer = p.layers[0];
+            const baseDims = this.getPlacedDimensions(baseLayer.productId, baseLayer.orientation || 0);
+            const baseTotalWidth = baseDims.width * baseLayer.facings;
+            
+            const newDims = this.getPlacedDimensions(layer.productId, layer.orientation);
+            const newFacings = Math.floor(baseTotalWidth / newDims.width);
+            
+            if (newFacings < 1) {
+                 layer.orientation = (layer.orientation + 5) % 6;
+                 return { success: false, reason: 'La rotación hace que la capa exceda el ancho de la base.' };
+            }
+            layer.facings = newFacings;
+        } else {
+            this._recalculateShelfX(sIdx);
+        }
+        
+        this._autoSave();
+        this.emit('gondola:updated', this.gondola);
+        this.emit('dashboard:update');
+        return { success: true };
+    }
+
+    updateProductFacings(sIdx, pIdx, lIdx, newFacings) {
+        const shelf = this.gondola.shelves[sIdx];
+        if (!shelf) return { success: false, reason: 'Estante no encontrado' };
+        const p = shelf.products[pIdx];
+        if (!p || !p.layers) return { success: false, reason: 'Producto no encontrado' };
+        const layer = p.layers[lIdx];
+        if (!layer) return { success: false, reason: 'Capa no encontrada' };
+
+        const dims = this.getPlacedDimensions(layer.productId, layer.orientation || 0);
+        
+        const oldWidth = dims.width * layer.facings;
+        const newWidth = dims.width * newFacings;
+        const diff = newWidth - oldWidth;
+
+        const available = this.getShelfAvailableWidth(sIdx);
+        if (diff > available) {
+            return {
+                success: false,
+                reason: `Sin espacio lineal suficiente. \nDisponible: ${available.toFixed(1)}cm \nRequerido adicional: ${diff.toFixed(1)}cm`
+            };
+        }
+
+        layer.facings = newFacings;
+        
+        if (lIdx === 0) {
+            for (let i = 1; i < p.layers.length; i++) {
+                const uLayer = p.layers[i];
+                const uDims = this.getPlacedDimensions(uLayer.productId, uLayer.orientation || 0);
+                const maxF = Math.floor(newWidth / uDims.width);
+                uLayer.facings = Math.max(1, maxF);
+            }
+        }
+
+        this._recalculateShelfX(sIdx);
+        this._autoSave();
+        this.emit('gondola:updated', this.gondola);
+        this.emit('dashboard:update');
+        return { success: true };
     }
 }

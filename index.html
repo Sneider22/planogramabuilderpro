@@ -8,7 +8,7 @@
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Outfit:wght@700;900&display=swap" rel="stylesheet">
     
     <!-- Styles -->
     <link rel="stylesheet" href="css/style.css">
@@ -19,14 +19,133 @@
 </head>
 <body>
 
-    <div class="app-container">
+    <!-- Login Screen -->
+    <div id="login-screen" class="full-screen-overlay">
+        <div class="login-card glass">
+            <div style="text-align: center; margin-bottom: 32px;">
+                <div style="display: inline-flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                    <svg width="48" height="48" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style="transform: rotate(-10deg);">
+                        <path d="M70 30 C 50 10, 20 25, 20 50 C 20 65, 30 75, 45 80" stroke="#009639" stroke-width="16" stroke-linecap="round" fill="none"/>
+                        <path d="M35 75 C 55 90, 80 80, 80 50 C 80 35, 70 25, 55 20" stroke="#ffb81c" stroke-width="16" stroke-linecap="round" fill="none"/>
+                    </svg>
+                    <div style="display: flex; flex-direction: column; justify-content: center; line-height: 1; text-align: left;">
+                        <span style="font-size: 32px; font-weight: 900; font-style: italic; color: #111827; font-family: 'Outfit', sans-serif;">Locatel</span>
+                        <span style="font-size: 10px; font-weight: 700; color: #4b5563; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px;">Supermercado de Salud</span>
+                    </div>
+                </div>
+                <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 8px; color: var(--text);">Gestor de Planogramas</h2>
+                <p style="color: var(--text-muted); font-size: 13px;">Ingresa tus credenciales para continuar</p>
+            </div>
+            <div id="login-error" style="color: #ef4444; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); padding: 10px; border-radius: 6px; font-size: 13px; display: none; margin-bottom: 16px; text-align: center;">Credenciales incorrectas</div>
+            <div class="field" style="margin-bottom: 16px;">
+                <label>Usuario</label>
+                <input type="text" id="login-username" placeholder="admin" autocomplete="off" style="width: 100%; background: var(--input-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; color: var(--text); font-size: 14px;">
+            </div>
+            <div class="field" style="margin-bottom: 24px;">
+                <label>Contraseña</label>
+                <input type="password" id="login-password" placeholder="••••••••" style="width: 100%; background: var(--input-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; color: var(--text); font-size: 14px;">
+            </div>
+            <button id="btn-login" style="width: 100%; background: var(--primary); color: white; border: none; padding: 12px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s;">Acceder</button>
+        </div>
+    </div>
+
+    <!-- Store Selector Screen -->
+    <div id="store-selector-screen" class="full-screen-overlay" style="display: none;">
+        <div class="store-dashboard">
+            <header class="store-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px;">
+                <div>
+                    <h2 style="font-size: 28px; font-weight: 700;">Mis Tiendas</h2>
+                    <p style="color: var(--text-muted); font-size: 14px; margin-top: 4px;">Selecciona o crea una tienda para gestionar planogramas</p>
+                </div>
+                <div style="display: flex; gap: 12px; align-items: center;">
+                    <button id="btn-show-create-store" style="background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                        Nueva Tienda
+                    </button>
+                    <button id="btn-logout-main" style="background: transparent; color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;">
+                        Cerrar Sesión
+                    </button>
+                </div>
+            </header>
+            
+            <div id="create-store-form" class="glass" style="display: none; padding: 24px; margin-bottom: 32px; border-radius: 12px; border: 1px solid var(--border); animation: slideDown 0.3s ease;">
+                <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 16px;">Crear Nueva Tienda</h3>
+                <div style="display: flex; gap: 12px; align-items: flex-end;">
+                    <div class="field" style="flex: 1;">
+                        <label>Nombre de la Tienda</label>
+                        <input type="text" id="new-store-name" placeholder="Ej. Sucursal Central, Tienda Norte..." style="width: 100%; background: var(--input-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; color: var(--text); font-size: 14px;">
+                    </div>
+                    <button id="btn-create-store" style="background: var(--primary); color: white; border: none; padding: 0 24px; border-radius: 6px; height: 42px; font-weight: 600; cursor: pointer;">Crear</button>
+                    <button id="btn-cancel-create-store" style="background: transparent; border: 1px solid var(--border); color: var(--text-muted); padding: 0 16px; border-radius: 6px; height: 42px; cursor: pointer; font-weight: 500;">Cancelar</button>
+                </div>
+            </div>
+
+            <div id="store-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 24px;"></div>
+
+            <div id="inline-report-section" style="display: none; margin-top: 32px; animation: slideDown 0.3s ease;">
+                <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.05);">
+                    <div style="padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <h3 id="inline-report-title" style="font-size: 18px; font-weight: 700; margin-bottom: 2px;">Reporte Global</h3>
+                            <p style="font-size: 12px; color: var(--text-muted);">Inventario consolidado de todas las góndolas</p>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="btn-inline-download-pdf" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); padding: 8px 16px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;">Descargar PDF</button>
+                            <button id="btn-close-inline-report" style="background: transparent; border: 1px solid var(--border); color: var(--text-muted); padding: 8px 16px; border-radius: 8px; font-size: 12px; cursor: pointer; font-weight: 600;">Cerrar</button>
+                        </div>
+                    </div>
+                    <div id="inline-report-content" style="padding: 24px; max-height: 50vh; overflow-y: auto;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Store Details Screen (Gondolas List) -->
+    <div id="store-details-screen" class="full-screen-overlay" style="display: none;">
+        <div class="store-dashboard">
+            <header class="store-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px;">
+                <div style="display: flex; gap: 16px; align-items: center;">
+                    <button id="btn-back-to-stores-list" style="background: transparent; border: 1px solid var(--border); color: var(--text-muted); padding: 8px 16px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 600;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                        Mis Tiendas
+                    </button>
+                    <div>
+                        <h2 id="details-store-name" style="font-size: 24px; font-weight: 700;">Nombre de Tienda</h2>
+                        <p style="color: var(--text-muted); font-size: 13px; margin-top: 4px;">Gestiona las góndolas de esta tienda</p>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 12px;">
+                    <button id="btn-global-report" style="background: rgba(99, 102, 241, 0.1); color: var(--primary); border: 1px solid var(--primary); padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;">Reporte Global</button>
+                    <button id="btn-create-gondola" style="background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;">+ Nueva Góndola</button>
+                </div>
+            </header>
+            
+            <div id="gondola-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; flex: 1; align-content: start;">
+                <!-- Gondolas injected here -->
+            </div>
+        </div>
+    </div>
+
+    <div class="app-container" id="main-app" style="display: none;">
         <!-- Header -->
         <header>
-            <div style="display:flex; align-items:center; gap:12px;">
-                <div style="width:32px; height:32px; background:var(--primary); border-radius:8px; display:grid; place-items:center;">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+            <div style="display:flex; align-items:center; gap:16px;">
+                <button id="btn-back-stores" style="background:transparent; border:1px solid var(--border); color:var(--text-muted); padding:6px 12px; border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                    Tiendas
+                </button>
+                <div style="width:1px; height:24px; background:var(--border);"></div>
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <svg width="28" height="28" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style="transform: rotate(-10deg);">
+                        <path d="M70 30 C 50 10, 20 25, 20 50 C 20 65, 30 75, 45 80" stroke="#009639" stroke-width="16" stroke-linecap="round" fill="none"/>
+                        <path d="M35 75 C 55 90, 80 80, 80 50 C 80 35, 70 25, 55 20" stroke="#ffb81c" stroke-width="16" stroke-linecap="round" fill="none"/>
+                    </svg>
+                    <div style="display: flex; flex-direction: column; justify-content: center; line-height: 1;">
+                        <span style="font-size: 18px; font-weight: 900; font-style: italic; color: #111827; font-family: 'Outfit', sans-serif;">Locatel</span>
+                        <span style="font-size: 8px; font-weight: 700; color: #4b5563; text-transform: uppercase; letter-spacing: 0.3px; margin-top: 2px;">Planogram Pro</span>
+                    </div>
+                    <span id="header-store-name" style="font-size:14px; font-weight:normal; color:var(--text-muted); margin-left:8px;"></span>
                 </div>
-                <h1 style="font-size:18px; font-weight:700; letter-spacing:-0.02em;">Planogram<span style="color:var(--primary)">Pro</span> Builder</h1>
             </div>
             
             <div style="display:flex; gap:16px; align-items:center;">
@@ -52,13 +171,53 @@
             </div>
         </div>
 
+        <!-- Product Details Modal -->
+        <div id="product-details-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:9999; place-items:center; padding:20px; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);">
+            <div class="glass" style="width:100%; max-width:320px; background:var(--card-bg); border: 1px solid var(--border); border-radius:20px; display:flex; flex-direction:column; overflow:hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.1);">
+                <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; background: rgba(0,0,0,0.01);">
+                    <h3 id="modal-product-name" style="font-size:16px; font-weight:600; margin:0; color:var(--text);">Nombre del Producto</h3>
+                    <button id="close-product-modal" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:24px; display:grid; place-items:center; transition: color 0.2s;">&times;</button>
+                </div>
+                <div style="padding:24px 20px; display:flex; flex-direction:column; gap:20px;">
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+                        <div style="background: rgba(0,0,0,0.03); padding:12px; border-radius:12px; text-align:center; border: 1px solid var(--border);">
+                            <span style="display:block; font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Profundidad (Z)</span>
+                            <strong id="modal-product-z" style="font-size:20px; color:var(--primary);">0</strong>
+                        </div>
+                        <div style="background: rgba(0,0,0,0.03); padding:12px; border-radius:12px; text-align:center; border: 1px solid var(--border);">
+                            <span style="display:block; font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Apilado (Y)</span>
+                            <strong id="modal-product-y" style="font-size:20px; color:#10b981;">0</strong>
+                        </div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; border:1px solid var(--border); border-radius:12px; background:rgba(0,0,0,0.01);">
+                        <span style="font-size:13px; color:var(--text-muted); font-weight: 500;">Frentes (X):</span>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <button id="btn-modal-dec-facings" style="background:rgba(0,0,0,0.03); border:1px solid var(--border); color:var(--text); width:28px; height:28px; border-radius:6px; cursor:pointer; font-weight:bold; display:grid; place-items:center; font-size: 14px; user-select:none;">-</button>
+                            <input type="number" id="input-modal-facings" value="1" min="1" max="50" style="width:45px; background:var(--input-bg); border:1px solid var(--border); border-radius:6px; color:var(--text); text-align:center; padding:4px 0; font-size:13px; font-weight:600;">
+                            <button id="btn-modal-inc-facings" style="background:rgba(0,0,0,0.03); border:1px solid var(--border); color:var(--text); width:28px; height:28px; border-radius:6px; cursor:pointer; font-weight:bold; display:grid; place-items:center; font-size: 14px; user-select:none;">+</button>
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:12px; margin-top:4px;">
+                        <button id="btn-modal-rotate-product" style="flex:1; background:rgba(99, 102, 241, 0.1); color:var(--primary); border:1px solid rgba(99, 102, 241, 0.2); padding:14px; border-radius:12px; cursor:pointer; font-weight:600; transition:all 0.2s; display:flex; align-items:center; justify-content:center; gap:8px;" title="Rotar 90 grados">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
+                            Rotar
+                        </button>
+                        <button id="btn-modal-delete-product" style="flex:1; background:rgba(239, 68, 68, 0.1); color:#ef4444; border:1px solid rgba(239, 68, 68, 0.2); padding:14px; border-radius:12px; cursor:pointer; font-weight:600; transition:all 0.2s; display:flex; align-items:center; justify-content:center; gap:8px;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                            Eliminar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Configuration Sidebar -->
         <aside class="sidebar-left">
             <div class="config-group">
                 <h3>Tipo de Mobiliario</h3>
                 <div class="field">
                     <label>Categoría</label>
-                    <select id="input-type" style="width: 100%; background: #0f172a; border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; color: white; font-size: 13px;">
+                    <select id="input-type" style="width: 100%; background: var(--input-bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; color: var(--text); font-size: 13px;">
                         <option value="pared">Góndola de Pared</option>
                         <option value="central">Góndola Central (Doble)</option>
                         <option value="cabecera">Cabecera de Pasillo</option>
@@ -71,7 +230,7 @@
                 <h3>Dimensiones Base</h3>
                 <div class="field">
                     <label>Tamaño Estándar (Presets)</label>
-                    <select id="input-dim-preset" style="width: 100%; background: #0f172a; border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; color: white; font-size: 13px;">
+                    <select id="input-dim-preset" style="width: 100%; background: var(--input-bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; color: var(--text); font-size: 13px;">
                         <option value="custom">Personalizado</option>
                         <option value="90x150x30">Mini (90x150x30)</option>
                         <option value="120x200x48">Estándar (120x200x48)</option>
@@ -109,16 +268,22 @@
                 </div>
             </div>
 
-            <div class="config-group">
-                <button id="btn-save-preset" style="width:100%; background:var(--primary); color:white; border:none; padding:10px; border-radius:6px; font-weight:600; cursor:pointer; margin-bottom:12px;">Guardar como Preset</button>
-                
-                <h3>Librería de Mobiliario</h3>
-                <div id="library-list" style="max-height: 200px; overflow-y: auto; display:flex; flex-direction:column; gap:8px;">
-                    <!-- Presets injected here -->
+            <div class="config-group" id="group-shelf-types" style="display: none;">
+                <h3>Configuración de Niveles</h3>
+                <div id="shelf-types-container" style="display: flex; flex-direction: column; gap: 10px;">
+                    <!-- Dynamically populated per shelf -->
                 </div>
             </div>
 
-            <div style="margin-top:40px; padding:16px; background:#0f172a; border-radius:8px; border:1px solid var(--border);">
+            <div class="config-group">
+                <button id="btn-duplicate-gondola" style="width:100%; background:transparent; color:var(--text-muted); border:1px solid var(--border); padding:10px; border-radius:6px; font-weight:600; cursor:pointer; margin-bottom:12px;">Duplicar esta Góndola</button>
+                <div style="margin-top:10px; padding:12px; background:rgba(16, 185, 129, 0.1); border:1px solid rgba(16, 185, 129, 0.2); border-radius:6px; display:flex; align-items:center; gap:8px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                    <span style="font-size:11px; color:#10b981; font-weight:600;">Autoguardado activado</span>
+                </div>
+            </div>
+
+            <div style="margin-top:40px; padding:16px; background:rgba(0,150,57,0.06); border-radius:8px; border:1px solid rgba(0,150,57,0.2);">
                 <p style="font-size:11px; color:var(--text-muted); line-height:1.5;">
                     💡 <strong>Tip:</strong> Usa Drag & Drop para añadir productos. Doble clic para removerlos de la plancha.
                 </p>

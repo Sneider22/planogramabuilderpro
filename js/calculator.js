@@ -63,14 +63,27 @@ class SpaceCalculator {
             let shelfValue = 0;
 
             shelf.products.forEach(placement => {
-                const product = this.state.getProductById(placement.productId);
-                if (!product) return;
+                let layersToProcess = placement.layers;
+                // Backwards compat with old format
+                if (!layersToProcess && placement.productId) {
+                    layersToProcess = [];
+                    for (let i = 0; i < (placement.stacks || 1); i++) {
+                        layersToProcess.push({ productId: placement.productId, facings: placement.facings, orientation: placement.orientation || 0 });
+                    }
+                }
+                if (!layersToProcess) return;
 
-                const depth = this.depthUnits(g.shelfDepth, product.depth);
-                const units = placement.facings * placement.stacks * depth; // Multiplicar por stacks (Y)
-                shelfUnits += units;
-                shelfValue += units * product.price;
-                skuSet.add(placement.productId);
+                layersToProcess.forEach(layer => {
+                    const product = this.state.getProductById(layer.productId);
+                    if (!product) return;
+
+                    const dims = this.state.getPlacedDimensions(layer.productId, layer.orientation || 0);
+                    const depth = this.depthUnits(g.shelfDepth, dims.depth);
+                    const units = layer.facings * depth;
+                    shelfUnits += units;
+                    shelfValue += units * product.price;
+                    skuSet.add(layer.productId);
+                });
             });
 
             totalValue += shelfValue;
