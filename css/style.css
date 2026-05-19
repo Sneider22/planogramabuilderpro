@@ -149,8 +149,7 @@ header {
     transform-style: preserve-3d;
     transform: rotateX(-10deg) rotateY(-20deg);
     transition: transform 0.1s ease-out;
-    margin-bottom: 250px;
-    /* Aumentado para separar del dashboard */
+    margin-bottom: 40px;
 }
 
 .gondola-back-panel {
@@ -298,39 +297,44 @@ header {
     cursor: grabbing;
 }
 
-/* Dashboard Bottom */
+/* Dashboard Left Column */
 .dashboard-overlay {
     position: absolute;
-    bottom: 24px;
-    left: 50%;
-    transform: translateX(-50%);
+    bottom: 20px;
+    left: 20px;
     display: flex;
-    gap: 12px;
+    flex-direction: column;
+    gap: 8px;
+    width: 180px;
     pointer-events: none;
+    z-index: 1000;
 }
 
 .stat-pill {
-    background: rgba(255, 255, 255, 0.9);
-    backdrop-filter: blur(8px);
+    background: var(--card-bg);
     border: 1px solid var(--border);
-    padding: 12px 20px;
+    padding: 10px 14px;
     border-radius: 12px;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+    align-items: flex-start;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+    width: 100%;
 }
 
 .stat-value {
     font-weight: bold;
-    font-size: 18px;
+    font-size: 16px;
     color: var(--text);
+    line-height: 1.2;
 }
 
 .stat-label {
-    font-size: 10px;
+    font-size: 9px;
     color: var(--text-muted);
     text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 2px;
 }
 
 .simple-hover-badge {
@@ -642,4 +646,20 @@ header {
 @keyframes slideDown {
     from { opacity: 0; transform: translateY(-10px); }
     to { opacity: 1; transform: translateY(0); }
+}
+
+/* Micro 3D Gondola Preview Styles */
+.mini-viewport {
+    background: radial-gradient(circle, #ffffff 0%, #f3f4f6 100%) !important;
+    transition: all 0.35s ease;
+}
+
+.store-card:hover .mini-viewport {
+    border-color: var(--primary) !important;
+    background: radial-gradient(circle, #ffffff 0%, rgba(0, 150, 57, 0.05) 100%) !important;
+    box-shadow: 0 4px 15px rgba(0, 150, 57, 0.08) !important;
+}
+
+.store-card:hover .mini-gondola {
+    transform: rotateX(-12deg) rotateY(15deg) scale(1.06) !important;
 }

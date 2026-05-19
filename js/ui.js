@@ -90,8 +90,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         document.getElementById('btn-global-report').addEventListener('click', () => {
-            generateGlobalReport();
-            document.getElementById('report-modal').style.display = 'grid';
+            const store = state.stores.find(s => s.id === state.currentStoreId);
+            if (store) {
+                generateStoreDetailsGlobalReport(store);
+            }
         });
 
         document.getElementById('btn-create-store').addEventListener('click', () => {
@@ -239,25 +241,93 @@ document.addEventListener('DOMContentLoaded', () => {
 
             let typeLabel = g.config.type === 'pared' ? 'Góndola Pared' : g.config.type === 'central' ? 'Góndola Central' : g.config.type === 'cabecera' ? 'Cabecera' : 'Refrigerado';
 
+            // Generate a mini 3D preview
+            const maxMiniH = 75; // max height in pixels for the miniature
+            const scaleMini = maxMiniH / 220; // Scale factor so a 220cm height maps to 75px
+            const miniH = Math.max(35, g.config.height * scaleMini);
+            const miniW = Math.max(25, g.config.width * scaleMini);
+            const miniD = Math.max(8, g.config.depth * scaleMini);
+
+            const typeColors = {
+                pared:       { back: 'linear-gradient(180deg, #1e293b 0%, #0f172a 100%)', shelf: '#475569', shelfTop: '#64748b', shelfFront: '#334155', border: '#334155' },
+                central:     { back: 'rgba(120,113,108,0.1)', shelf: '#78716c', shelfTop: '#a8a29e', shelfFront: '#57534e', border: '#78716c' },
+                cabecera:    { back: 'linear-gradient(180deg, #292524 0%, #1c1917 100%)', shelf: '#44403c', shelfTop: '#57534e', shelfFront: '#292524', border: '#57534e' },
+                refrigerado: { back: 'linear-gradient(180deg, #0c1929 0%, #0a1628 100%)', shelf: '#1e3a5f', shelfTop: '#2563eb', shelfFront: '#1e40af', border: '#3b82f6' }
+            };
+            const tc = typeColors[g.config.type] || typeColors.pared;
+            const miniBg = tc.back;
+            const miniBorder = tc.border;
+            let glowStyle = '';
+
+            if (g.config.type === 'refrigerado') {
+                glowStyle = 'box-shadow: inset 0 0 10px rgba(59,130,246,0.3);';
+            }
+
+            let colLHtml = '';
+            let colRHtml = '';
+            if (g.config.type === 'pared') {
+                colLHtml = `<div style="position:absolute; left:-2px; top:0; width:2px; height:100%; background:#334155; transform-style:preserve-3d;"><div style="position:absolute; left:0; width:${miniD}px; height:100%; background:#2d3a4a; transform:rotateY(90deg); transform-origin:left;"></div></div>`;
+                colRHtml = `<div style="position:absolute; right:-2px; top:0; width:2px; height:100%; background:#334155; transform-style:preserve-3d;"><div style="position:absolute; right:0; width:${miniD}px; height:100%; background:#2d3a4a; transform:rotateY(-90deg); transform-origin:right;"></div></div>`;
+            } else if (g.config.type === 'central') {
+                colLHtml = `<div style="position:absolute; left:-2px; top:0; width:2px; height:100%; background:#78716c; transform-style:preserve-3d;"><div style="position:absolute; left:0; width:${miniD}px; height:100%; background:#57534e; transform:rotateY(90deg); transform-origin:left;"></div></div>`;
+                colRHtml = `<div style="position:absolute; right:-2px; top:0; width:2px; height:100%; background:#78716c; transform-style:preserve-3d;"><div style="position:absolute; right:0; width:${miniD}px; height:100%; background:#57534e; transform:rotateY(-90deg); transform-origin:right;"></div></div>`;
+            } else if (g.config.type === 'refrigerado') {
+                colRHtml = `<div style="position:absolute; top:0; right:0; width:${miniD}px; height:100%; background:rgba(59,130,246,0.04); border-left:1px solid rgba(59,130,246,0.15); transform:rotateY(-90deg); transform-origin:right;"></div>`;
+            }
+
+            let shelvesHtml = '';
+            g.config.shelves.forEach(shelf => {
+                const miniShelfY = shelf.y * scaleMini;
+                const miniShelfThickness = Math.max(1, g.config.shelfThickness * scaleMini);
+                const isPerchero = shelf.type === 'perchero';
+                const shelfColor = isPerchero ? '#475569' : tc.shelf;
+                const shelfTopColor = isPerchero ? '#64748b' : tc.shelfTop;
+                const shelfFrontColor = isPerchero ? '#334155' : tc.shelfFront;
+                const miniShelfDepth = (isPerchero ? 2 : g.config.shelfDepth) * scaleMini;
+
+                shelvesHtml += `
+                    <div style="position: absolute; width: 100%; height: ${miniShelfThickness}px; bottom: ${miniShelfY}px; left: 0; background: ${shelfColor}; transform-style: preserve-3d;">
+                        <div style="position: absolute; width: 100%; height: ${miniShelfDepth}px; background: ${shelfTopColor}; transform: rotateX(90deg); transform-origin: top; top: 0; left: 0;"></div>
+                        <div style="position: absolute; width: 100%; height: 100%; background: ${shelfFrontColor}; transform: translateZ(${miniShelfDepth}px); top: 0; left: 0;"></div>
+                    </div>
+                `;
+            });
+
             el.innerHTML = `
-                <div class="store-card-content">
-                    <div class="store-card-header">
-                        <div class="store-card-icon" style="background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.2); color: #10b981;">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 9v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9"/><path d="M9 22V12h6v10M2 10.6L12 2l10 8.6"/></svg>
-                        </div>
-                        <div style="flex: 1;">
-                            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                                <h3 style="margin-bottom:2px;">${g.name}</h3>
-                                <button class="btn-delete-gondola" data-id="${g.id}" style="background:rgba(239, 68, 68, 0.1); border:none; color:#ef4444; border-radius:6px; cursor:pointer; padding:6px; transition:all 0.2s; display:grid; place-items:center;" title="Eliminar góndola">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                                </button>
+                <div class="store-card-content" style="display: flex; flex-direction: row; gap: 16px; align-items: center; padding: 16px;">
+                    <!-- Mini 3D Viewport -->
+                    <div class="mini-viewport" style="width: 80px; height: 100px; border-radius: 12px; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; perspective: 250px; overflow: hidden; flex-shrink: 0; box-shadow: inset 0 2px 4px rgba(0,0,0,0.03);">
+                        <div class="mini-gondola" style="position: relative; width: ${miniW}px; height: ${miniH}px; transform-style: preserve-3d; transform: rotateX(-12deg) rotateY(-18deg); transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1); margin-top: 10px;">
+                            <!-- Back Panel -->
+                            <div style="position: absolute; inset: 0; background: ${miniBg}; border: 1px solid ${miniBorder}; transform-style: preserve-3d; ${glowStyle}">
+                                ${colLHtml}
+                                ${colRHtml}
                             </div>
-                            <p style="font-size:11px;">${g.config.width}x${g.config.height}x${g.config.depth} cm</p>
+                            <!-- Shelves -->
+                            ${shelvesHtml}
                         </div>
                     </div>
-                    <div class="meta">
-                        <span class="pill-badge" style="color: #10b981; background: rgba(16, 185, 129, 0.15);"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg> ${totalUnits} Unidades</span>
-                        <span style="font-size: 11px; display:flex; align-items:center; gap:4px; color:var(--text-muted); font-weight:600;">${typeLabel}</span>
+                    
+                    <!-- Card Info -->
+                    <div style="flex: 1; display: flex; flex-direction: column; min-width: 0;">
+                        <div>
+                            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap: 6px;">
+                                <h3 style="margin-bottom:2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 15px; font-weight: 700; color: var(--text);" title="${g.name}">${g.name}</h3>
+                                <button class="btn-delete-gondola" data-id="${g.id}" style="background:rgba(239, 68, 68, 0.08); border:none; color:#ef4444; border-radius:6px; cursor:pointer; padding:5px; transition:all 0.2s; display:grid; place-items:center; flex-shrink:0;" title="Eliminar góndola">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                </button>
+                            </div>
+                            <p style="font-size:11px; color: var(--text-muted); font-weight: 600; margin-bottom: 8px;">${g.config.width}x${g.config.height}x${g.config.depth} cm</p>
+                        </div>
+                        <div class="meta" style="margin-bottom: 0; display:flex; gap:6px; flex-wrap: wrap;">
+                            <span class="pill-badge" style="color: #10b981; background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.15); padding: 3px 6px; font-size: 10px; font-weight: 700; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;">
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
+                                ${totalUnits} U.
+                            </span>
+                            <span class="pill-badge" style="color: var(--primary); background: var(--primary-light); border-color: rgba(0, 150, 57, 0.1); padding: 3px 6px; font-size: 10px; font-weight: 700; border-radius: 6px; display: inline-flex; align-items: center;">
+                                ${typeLabel}
+                            </span>
+                        </div>
                     </div>
                 </div>
             `;
@@ -325,14 +395,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const colL = document.createElement('div');
             colL.style.cssText = `position:absolute; left:-6px; top:0; width:6px; height:100%; background:#334155; transform-style:preserve-3d;`;
             const colLSide = document.createElement('div');
-            colLSide.style.cssText = `position:absolute; width:${g.depth * scale}px; height:100%; background:#2d3a4a; transform:rotateY(90deg); transform-origin:left;`;
+            colLSide.style.cssText = `position:absolute; left:0; width:${g.depth * scale}px; height:100%; background:#2d3a4a; transform:rotateY(-90deg); transform-origin:left;`;
             colL.appendChild(colLSide);
             gondola3d.appendChild(colL);
 
             const colR = document.createElement('div');
             colR.style.cssText = `position:absolute; right:-6px; top:0; width:6px; height:100%; background:#334155; transform-style:preserve-3d;`;
             const colRSide = document.createElement('div');
-            colRSide.style.cssText = `position:absolute; width:${g.depth * scale}px; height:100%; background:#2d3a4a; transform:rotateY(-90deg); transform-origin:right;`;
+            colRSide.style.cssText = `position:absolute; right:0; width:${g.depth * scale}px; height:100%; background:#2d3a4a; transform:rotateY(90deg); transform-origin:right;`;
             colR.appendChild(colRSide);
             gondola3d.appendChild(colR);
 
@@ -345,7 +415,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const post = document.createElement('div');
                 post.style.cssText = `position:absolute; ${pos}; top:0; width:8px; height:100%; background:linear-gradient(180deg, #a8a29e, #78716c); border-radius:2px; transform-style:preserve-3d;`;
                 const postDepth = document.createElement('div');
-                postDepth.style.cssText = `position:absolute; width:${g.depth * scale}px; height:100%; background:#57534e; transform:rotateY(${pos.startsWith('left') ? '' : '-'}90deg); transform-origin:${pos.startsWith('left') ? 'left' : 'right'};`;
+                const isLeft = pos.startsWith('left');
+                postDepth.style.cssText = `position:absolute; ${isLeft ? 'left:0' : 'right:0'}; width:${g.depth * scale}px; height:100%; background:#57534e; transform:rotateY(${isLeft ? '-' : ''}90deg); transform-origin:${isLeft ? 'left' : 'right'};`;
                 post.appendChild(postDepth);
                 gondola3d.appendChild(post);
             });
@@ -370,7 +441,7 @@ document.addEventListener('DOMContentLoaded', () => {
             backPanel.appendChild(glow);
             // Glass side panel
             const glass = document.createElement('div');
-            glass.style.cssText = `position:absolute; top:0; right:0; width:${g.depth * scale}px; height:100%; background:rgba(59,130,246,0.04); border:1px solid rgba(59,130,246,0.15); transform:rotateY(-90deg); transform-origin:right; backdrop-filter:blur(2px);`;
+            glass.style.cssText = `position:absolute; top:0; right:0; width:${g.depth * scale}px; height:100%; background:rgba(59,130,246,0.04); border:1px solid rgba(59,130,246,0.15); transform:rotateY(90deg); transform-origin:right; backdrop-filter:blur(2px);`;
             backPanel.appendChild(glass);
         }
 
@@ -410,9 +481,36 @@ document.addEventListener('DOMContentLoaded', () => {
                 pegboard.addEventListener('drop', (e) => {
                     e.preventDefault();
                     pegboard.style.backgroundColor = '#1e293b';
-                    const productId = e.dataTransfer.getData('text/plain');
-                    const result = state.placeProduct(idx, productId);
-                    if (!result.success) alert(result.reason);
+
+                    const rect = pegboard.getBoundingClientRect();
+                    const dropXpx = e.clientX - rect.left;
+                    const dropXcm = dropXpx / scale;
+
+                    const spacing = shelf.hookSpacing || 15;
+                    const numHooks = Math.floor(g.width / spacing);
+                    const margin = (g.width - (numHooks - 1) * spacing) / 2;
+
+                    let closestHookIdx = 0;
+                    let minDistance = Infinity;
+                    for (let i = 0; i < numHooks; i++) {
+                        const hookX = margin + i * spacing;
+                        const dist = Math.abs(dropXcm - hookX);
+                        if (dist < minDistance) {
+                            minDistance = dist;
+                            closestHookIdx = i;
+                        }
+                    }
+
+                    const dragDataStr = e.dataTransfer.getData('application/json');
+                    if (dragDataStr) {
+                        const dragData = JSON.parse(dragDataStr);
+                        const result = state.moveProduct(dragData.sourceShelfIndex, dragData.sourcePlacementIndex, idx, closestHookIdx, dragData.sourceLayerIndex);
+                        if (!result.success) alert(result.reason);
+                    } else {
+                        const productId = e.dataTransfer.getData('text/plain');
+                        const result = state.placeProduct(idx, productId, 1, closestHookIdx);
+                        if (!result.success) alert(result.reason);
+                    }
                 });
 
                 gondola3d.appendChild(pegboard);
@@ -434,9 +532,40 @@ document.addEventListener('DOMContentLoaded', () => {
             shelfEl.addEventListener('drop', (e) => {
                 e.preventDefault();
                 shelfEl.classList.remove('drag-over');
-                const productId = e.dataTransfer.getData('text/plain');
-                const result = state.placeProduct(idx, productId);
-                if (!result.success) alert(result.reason);
+
+                let targetHookIndex = undefined;
+                if (isPerchero) {
+                    const rect = shelfEl.getBoundingClientRect();
+                    const dropXpx = e.clientX - rect.left;
+                    const dropXcm = dropXpx / scale;
+
+                    const spacing = shelf.hookSpacing || 15;
+                    const numHooks = Math.floor(g.width / spacing);
+                    const margin = (g.width - (numHooks - 1) * spacing) / 2;
+
+                    let closestHookIdx = 0;
+                    let minDistance = Infinity;
+                    for (let i = 0; i < numHooks; i++) {
+                        const hookX = margin + i * spacing;
+                        const dist = Math.abs(dropXcm - hookX);
+                        if (dist < minDistance) {
+                            minDistance = dist;
+                            closestHookIdx = i;
+                        }
+                    }
+                    targetHookIndex = closestHookIdx;
+                }
+
+                const dragDataStr = e.dataTransfer.getData('application/json');
+                if (dragDataStr) {
+                    const dragData = JSON.parse(dragDataStr);
+                    const result = state.moveProduct(dragData.sourceShelfIndex, dragData.sourcePlacementIndex, idx, targetHookIndex, dragData.sourceLayerIndex);
+                    if (!result.success) alert(result.reason);
+                } else {
+                    const productId = e.dataTransfer.getData('text/plain');
+                    const result = state.placeProduct(idx, productId, 1, targetHookIndex);
+                    if (!result.success) alert(result.reason);
+                }
             });
 
             const top = document.createElement('div');
@@ -453,21 +582,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Hook rods render for perchero
             if (isPerchero) {
-                shelf.products.forEach((p) => {
-                    let layersToProcess = p.layers;
-                    if (!layersToProcess || layersToProcess.length === 0) return;
-                    const layer = layersToProcess[0];
-                    const dims = state.getPlacedDimensions(layer.productId, layer.orientation || 0);
-
-                    // Hook rod extending forward
+                const spacing = shelf.hookSpacing || 15;
+                const numHooks = Math.floor(g.width / spacing);
+                const margin = (g.width - (numHooks - 1) * spacing) / 2;
+                
+                for (let i = 0; i < numHooks; i++) {
+                    const hookX = margin + i * spacing;
+                    
+                    // Static chrome hook rod extending forward
                     const hook = document.createElement('div');
+                    hook.className = 'hook-3d';
                     hook.style.cssText = `
                         position: absolute;
-                        left: ${(p.x + (dims.width * layer.facings) / 2) * scale - 2}px;
-                        bottom: ${(shelf.y + dims.height * 0.85) * scale}px;
+                        left: ${hookX * scale - 2}px;
+                        bottom: ${shelf.y * scale}px;
                         width: 4px;
                         height: 4px;
-                        background: #cbd5e1;
+                        background: #94a3b8;
                         transform-style: preserve-3d;
                         transform: translateZ(0px);
                         pointer-events: none;
@@ -479,10 +610,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         width: 4px;
                         height: 4px;
                         background: linear-gradient(90deg, #94a3b8, #cbd5e1, #94a3b8);
-                        transform: rotateY(90deg);
+                        transform: rotateY(-90deg);
                         transform-origin: left;
                         width: ${g.shelfDepth * scale}px;
-                        box-shadow: 0 5px 5px rgba(0,0,0,0.3);
+                        box-shadow: 0 3px 5px rgba(0,0,0,0.35);
                     `;
                     hook.appendChild(rod);
                     
@@ -493,25 +624,20 @@ document.addEventListener('DOMContentLoaded', () => {
                         bottom: 0;
                         width: 4px;
                         height: 8px;
-                        background: #cbd5e1;
+                        background: #e2e8f0;
                         transform: rotateX(-45deg);
                     `;
                     hook.appendChild(tip);
 
                     gondola3d.appendChild(hook);
-                });
+                }
             }
 
             shelf.products.forEach((p, pIdx) => {
                 let layersToProcess = p.layers;
-                // Retrocompatibilidad visual
                 if (!layersToProcess) {
                     if (p.productId) {
-                        layersToProcess = [];
-                        for(let i=0; i < (p.stacks || 1); i++) {
-                            layersToProcess.push({ productId: p.productId, facings: p.facings, orientation: p.orientation || 0 });
-                        }
-                        // Auto-migrate in memory
+                        layersToProcess = [{ productId: p.productId, facings: p.facings || 1, orientation: p.orientation || 0 }];
                         p.layers = layersToProcess;
                     } else {
                         return;
@@ -524,12 +650,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 placementEl.className = 'placement-wrapper';
                 placementEl.style.position = 'absolute';
                 placementEl.style.left = `${p.x * scale}px`;
-                placementEl.style.bottom = `${g.shelfThickness * scale}px`;
+                
+                // Snapping product vertically so it hangs perfectly from the hook rod instead of standing on the bar
+                if (isPerchero && layersToProcess.length > 0) {
+                    const baseLayer = layersToProcess[0];
+                    const dims = state.getPlacedDimensions(baseLayer.productId, baseLayer.orientation || 0);
+                    placementEl.style.bottom = `${-dims.height * 0.85 * scale}px`;
+                } else {
+                    placementEl.style.bottom = `${g.shelfThickness * scale}px`;
+                }
+                
                 placementEl.style.transformStyle = 'preserve-3d';
 
                 let currentY = 0;
-
-                p.layers.forEach((layer, lIdx) => {
+                layersToProcess.forEach((layer, lIdx) => {
                     const product = state.getProductById(layer.productId);
                     if (!product) return;
 
@@ -540,11 +674,31 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     const layerEl = document.createElement('div');
                     layerEl.className = 'placed-product';
+                    layerEl.draggable = true;
+                    layerEl.style.cursor = 'grab';
                     layerEl.style.width = `${dims.width * scale * layer.facings}px`;
                     layerEl.style.height = `${dims.height * scale}px`;
                     layerEl.style.bottom = `${currentY * scale}px`;
                     layerEl.style.left = `0px`;
                     layerEl.style.transform = `translateZ(${g.shelfDepth * scale - visualDepth}px)`;
+
+                    layerEl.addEventListener('dragstart', (e) => {
+                        e.stopPropagation();
+                        e.dataTransfer.setData('application/json', JSON.stringify({
+                            sourceShelfIndex: idx,
+                            sourcePlacementIndex: pIdx,
+                            sourceLayerIndex: lIdx
+                        }));
+                        e.dataTransfer.setData('text/plain', layer.productId);
+                        // Highlight source visual feedback
+                        setTimeout(() => {
+                            layerEl.style.opacity = '0.4';
+                        }, 0);
+                    });
+                    layerEl.addEventListener('dragend', (e) => {
+                        e.stopPropagation();
+                        layerEl.style.opacity = '1';
+                    });
 
                     const hoverBadge = document.createElement('div');
                     hoverBadge.className = 'simple-hover-badge';
@@ -651,8 +805,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         [...g.shelves].reverse().forEach(shelf => {
             const row = document.createElement('div');
-            row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; font-size:12px; background:rgba(255,255,255,0.02); padding:6px 10px; border-radius:6px; border:1px solid rgba(255,255,255,0.04);';
+            row.style.cssText = 'display:flex; flex-direction:column; font-size:12px; background:rgba(255,255,255,0.02); padding:8px 10px; border-radius:6px; border:1px solid rgba(255,255,255,0.04); margin-bottom: 6px; gap: 4px;';
             
+            const controlGroup = document.createElement('div');
+            controlGroup.style.cssText = 'display:flex; flex-direction:column; width:100%; gap:4px;';
+
+            const headerLine = document.createElement('div');
+            headerLine.style.cssText = 'display:flex; justify-content:space-between; align-items:center;';
+
             const label = document.createElement('span');
             label.innerText = `Nivel ${shelf.index + 1}`;
             label.style.fontWeight = '600';
@@ -668,8 +828,49 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.setShelfType(shelf.index, e.target.value);
             });
 
-            row.appendChild(label);
-            row.appendChild(select);
+            headerLine.appendChild(label);
+            headerLine.appendChild(select);
+            controlGroup.appendChild(headerLine);
+
+            if (shelf.type === 'perchero') {
+                const sliderLine = document.createElement('div');
+                sliderLine.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin-top:4px; padding-top:4px; border-top:1px solid rgba(255,255,255,0.05);';
+                
+                const sliderLabel = document.createElement('span');
+                sliderLabel.style.cssText = 'font-size:10px; color:var(--text-muted); font-weight: 500;';
+                sliderLabel.innerText = `Separación: ${shelf.hookSpacing || 15}cm`;
+                
+                const slider = document.createElement('input');
+                slider.type = 'range';
+                slider.min = '10';
+                slider.max = '30';
+                slider.step = '5';
+                slider.value = shelf.hookSpacing || 15;
+                slider.style.cssText = 'width:90px; height:4px; accent-color:#009639; cursor:pointer;';
+                
+                slider.addEventListener('input', (e) => {
+                    const val = e.target.value;
+                    sliderLabel.innerText = `Separación: ${val}cm`;
+                });
+                
+                slider.addEventListener('change', (e) => {
+                    const proposed = parseFloat(e.target.value);
+                    const check = state.checkHookSpacingOverlap(shelf.index, proposed);
+                    if (!check.valid) {
+                        alert(`⚠️ Imposible reducir separación:\n\n${check.reason}`);
+                        e.target.value = shelf.hookSpacing || 15;
+                        sliderLabel.innerText = `Separación: ${shelf.hookSpacing || 15}cm`;
+                        return;
+                    }
+                    state.setShelfHookSpacing(shelf.index, proposed);
+                });
+                
+                sliderLine.appendChild(sliderLabel);
+                sliderLine.appendChild(slider);
+                controlGroup.appendChild(sliderLine);
+            }
+
+            row.appendChild(controlGroup);
             container.appendChild(row);
         });
     }
@@ -710,30 +911,83 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         Object.keys(categories).forEach(cat => {
-            const header = document.createElement('div');
-            header.style.cssText = 'font-size:11px; font-weight:700; color:var(--primary); text-transform:uppercase; margin:20px 0 10px 0; border-bottom:1px solid rgba(99,102,241,0.2); padding-bottom:4px;';
-            header.innerText = cat;
-            catalogList.appendChild(header);
+            // Category Wrapper
+            const catWrapper = document.createElement('div');
+            catWrapper.style.cssText = 'margin-bottom: 12px; border-radius: 8px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); overflow: hidden;';
 
+            // Clickable Header Bar
+            const header = document.createElement('div');
+            header.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background: rgba(0,0,0,0.2); cursor:pointer; font-size:12px; font-weight:700; color:var(--text); text-transform:uppercase; user-select:none; transition: all 0.2s ease;';
+            header.innerHTML = `
+                <span>${cat} <span style="font-size:10px; color:var(--text-muted); font-weight:normal; text-transform:none; margin-left:4px;">(${categories[cat].length})</span></span>
+                <span class="category-arrow" style="font-size:10px; color:var(--text-muted); transition: transform 0.2s ease; display: inline-block;">▶</span>
+            `;
+
+            // Products Container (Initially Collapsed)
+            const productsContainer = document.createElement('div');
+            productsContainer.style.cssText = 'display: none; padding: 12px; flex-direction: column; gap: 10px; border-top: 1px solid var(--border); background: rgba(0,0,0,0.1);';
+
+            // Click Handler to toggle expand/collapse
+            header.addEventListener('click', () => {
+                const arrow = header.querySelector('.category-arrow');
+                if (productsContainer.style.display === 'none') {
+                    productsContainer.style.display = 'flex';
+                    arrow.style.transform = 'rotate(90deg)';
+                    header.style.background = 'rgba(99, 102, 241, 0.1)';
+                    header.style.color = 'var(--primary)';
+                } else {
+                    productsContainer.style.display = 'none';
+                    arrow.style.transform = 'rotate(0deg)';
+                    header.style.background = 'rgba(0,0,0,0.2)';
+                    header.style.color = 'var(--text)';
+                }
+            });
+
+            // Hover effects
+            header.addEventListener('mouseenter', () => {
+                if (productsContainer.style.display === 'none') {
+                    header.style.background = 'rgba(255, 255, 255, 0.05)';
+                }
+            });
+            header.addEventListener('mouseleave', () => {
+                if (productsContainer.style.display === 'none') {
+                    header.style.background = 'rgba(0,0,0,0.2)';
+                }
+            });
+
+            // Add products to container
             categories[cat].forEach(p => {
                 const el = document.createElement('div');
                 el.className = 'draggable-product';
                 el.draggable = true;
+                el.style.cssText = 'margin: 0;'; 
                 el.innerHTML = `
-                    <div style="display:flex; justify-content:space-between;">
-                        <span style="font-size:10px; color:var(--text-muted);">${p.sku}</span>
-                        <span style="font-size:11px; font-weight:700; color:white;">$${p.price.toFixed(2)}</span>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:9px; color:var(--text-muted); font-family:monospace; background:rgba(255,255,255,0.05); padding:2px 4px; border-radius:4px;">${p.sku}</span>
+                        <span style="font-size:11px; font-weight:700; color:#10b981;">$${p.price.toFixed(2)}</span>
                     </div>
-                    <div style="font-weight:600; font-size:13px; margin:4px 0;">${p.name}</div>
-                    <div style="display:flex; gap:8px; font-size:9px; color:var(--text-muted);">
-                        <span>${p.width}x${p.height}x${p.depth} cm</span>
-                        <span style="color:${p.color}; opacity:0.8;">■ Color</span>
+                    <div style="font-weight:600; font-size:13px; margin:6px 0; color:var(--text);">${p.name}</div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px; color:var(--text-muted);">
+                        <span>📏 ${p.width} × ${p.height} × ${p.depth} cm</span>
+                        <span style="display:inline-flex; align-items:center; gap:4px; font-size:9px; font-weight:600; color:${p.color};">
+                            <span style="width:7px; height:7px; border-radius:50%; background:${p.color}; display:inline-block; border:1px solid rgba(255,255,255,0.2);"></span>
+                            Color
+                        </span>
                     </div>
                 `;
-                el.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', p.id); el.style.opacity = '0.5'; });
-                el.addEventListener('dragend', () => { el.style.opacity = '1'; });
-                catalogList.appendChild(el);
+                el.addEventListener('dragstart', (e) => { 
+                    e.dataTransfer.setData('text/plain', p.id); 
+                    el.style.opacity = '0.5'; 
+                });
+                el.addEventListener('dragend', () => { 
+                    el.style.opacity = '1'; 
+                });
+                productsContainer.appendChild(el);
             });
+
+            catWrapper.appendChild(header);
+            catWrapper.appendChild(productsContainer);
+            catalogList.appendChild(catWrapper);
         });
     }
 
@@ -1173,6 +1427,517 @@ document.addEventListener('DOMContentLoaded', () => {
         doc.save(`Reporte_Global_${Date.now()}.pdf`);
     });
 
+    function generateStoreDetailsGlobalReport(store) {
+        const section = document.getElementById('details-report-section');
+        const content = document.getElementById('details-report-content');
+        
+        if (!store.library || store.library.length === 0) {
+            content.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding:20px;">No hay góndolas en esta tienda para reportar.</p>';
+            section.style.display = 'block';
+            section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            return;
+        }
+
+        // Consolidated Store Stats
+        let grandTotalUnits = 0;
+        let grandTotalValue = 0;
+        let grandUniqueSkus = new Set();
+        const productStoreMap = {}; // SKU -> { sku, name, category, totalUnits, price, totalValue }
+
+        // Render each Gondola table details
+        let html = '';
+
+        store.library.forEach(g => {
+            let gondolaTotalUnits = 0;
+            let gondolaTotalValue = 0;
+            let gondolaUniqueSkus = new Set();
+            let tableRowsHtml = '';
+
+            g.config.shelves.forEach((s, sIdx) => {
+                const shelfProducts = [];
+                let shelfTotalUnits = 0;
+                let shelfTotalValue = 0;
+
+                s.products.forEach(p => {
+                    let layersToProcess = p.layers;
+                    if (!layersToProcess && p.productId) {
+                        layersToProcess = [{ productId: p.productId, facings: p.facings, orientation: p.orientation || 0 }];
+                    }
+                    if (!layersToProcess) return;
+
+                    layersToProcess.forEach(layer => {
+                        const product = state.getProductById(layer.productId);
+                        if (!product) return;
+
+                        const dims = state.getPlacedDimensions(layer.productId, layer.orientation || 0);
+                        const unitsInZ = Math.floor(g.config.shelfDepth / dims.depth);
+                        const totalUnits = layer.facings * unitsInZ;
+
+                        let existing = shelfProducts.find(x => x.sku === product.sku);
+                        if (!existing) {
+                            existing = { sku: product.sku, name: product.name, units: 0, price: product.price, totalValue: 0 };
+                            shelfProducts.push(existing);
+                        }
+                        existing.units += totalUnits;
+                        existing.totalValue += (totalUnits * product.price);
+
+                        shelfTotalUnits += totalUnits;
+                        shelfTotalValue += (totalUnits * product.price);
+
+                        gondolaTotalUnits += totalUnits;
+                        gondolaTotalValue += (totalUnits * product.price);
+                        gondolaUniqueSkus.add(product.sku);
+
+                        grandTotalUnits += totalUnits;
+                        grandTotalValue += (totalUnits * product.price);
+                        grandUniqueSkus.add(product.sku);
+
+                        // Storewide map
+                        if (!productStoreMap[product.sku]) {
+                            productStoreMap[product.sku] = {
+                                sku: product.sku,
+                                name: product.name,
+                                category: product.category || 'Medicina',
+                                totalUnits: 0,
+                                price: product.price,
+                                totalValue: 0
+                            };
+                        }
+                        productStoreMap[product.sku].totalUnits += totalUnits;
+                        productStoreMap[product.sku].totalValue += (totalUnits * product.price);
+                    });
+                });
+
+                if (shelfProducts.length > 0) {
+                    const isPerchero = s.type === 'perchero';
+                    const levelName = isPerchero ? `Nivel ${sIdx + 1} (Perchero)` : `Nivel ${sIdx + 1} (Plancha)`;
+                    
+                    tableRowsHtml += `<tr style="background: var(--primary-light); font-weight: 700;">
+                        <td colspan="5" style="padding: 8px 12px; border-bottom: 1px solid var(--border); color: var(--primary); text-align: left; font-size:12px;">
+                            ${levelName}
+                        </td>
+                    </tr>`;
+                    
+                    shelfProducts.forEach(data => {
+                        tableRowsHtml += `<tr style="font-size:12px;">
+                            <td style="padding: 10px 12px; font-family:monospace; font-weight:600;">${data.sku}</td>
+                            <td style="padding: 10px 12px;">${data.name}</td>
+                            <td style="padding: 10px 12px; font-weight:700;">${data.units} U.</td>
+                            <td style="padding: 10px 12px;">$${data.price.toFixed(2)}</td>
+                            <td style="padding: 10px 12px; font-weight:700; color:var(--text);">$${data.totalValue.toFixed(2)}</td>
+                        </tr>`;
+                    });
+                    
+                    tableRowsHtml += `<tr style="font-weight: 600; font-size: 11px; background: rgba(0,0,0,0.01);">
+                        <td colspan="2" style="text-align: right; padding: 8px 12px; color: var(--text-muted);">Subtotal ${levelName}:</td>
+                        <td style="padding: 8px 12px; font-weight:700;">${shelfTotalUnits} U.</td>
+                        <td>-</td>
+                        <td style="padding: 8px 12px; font-weight:700;">$${shelfTotalValue.toFixed(2)}</td>
+                    </tr>`;
+                }
+            });
+
+            // Gondola container card
+            html += `
+            <div style="background:#ffffff; border:1px solid var(--border); border-radius:12px; margin-bottom:24px; overflow:hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
+                <div style="padding:14px 18px; background:rgba(0, 150, 57, 0.04); border-bottom:1px solid rgba(0, 150, 57, 0.1); display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <h4 style="font-size:15px; font-weight:700; color:var(--text);">${g.name}</h4>
+                        <span style="font-size:11px; color:var(--text-muted); font-weight:500;">
+                            Tipo: ${g.config.type === 'pared' ? 'Pared' : g.config.type === 'central' ? 'Central' : g.config.type === 'cabecera' ? 'Cabecera' : 'Refrigerado'} · 
+                            Dimensiones: ${g.config.width}x${g.config.height}x${g.config.depth} cm
+                        </span>
+                    </div>
+                    <div style="text-align:right;">
+                        <span style="font-size:14px; font-weight:700; color:var(--primary); display:block;">$${gondolaTotalValue.toFixed(2)}</span>
+                        <span style="font-size:10px; color:var(--text-muted); font-weight:600;">${gondolaTotalUnits} Unidades · ${gondolaUniqueSkus.size} SKUs</span>
+                    </div>
+                </div>
+                <div style="padding:12px;">
+                    <table class="report-table" style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background:#f8fafc; border-bottom:2px solid var(--border);">
+                                <th style="padding: 10px 12px; text-align:left; font-size:10px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">SKU</th>
+                                <th style="padding: 10px 12px; text-align:left; font-size:10px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Producto</th>
+                                <th style="padding: 10px 12px; text-align:left; font-size:10px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Cantidad</th>
+                                <th style="padding: 10px 12px; text-align:left; font-size:10px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Precio Unit.</th>
+                                <th style="padding: 10px 12px; text-align:left; font-size:10px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Valor Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tableRowsHtml || '<tr><td colspan="5" style="text-align:center; padding:20px; color:var(--text-muted);">Sin productos colocados</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>
+            </div>`;
+        });
+
+        // Store summary banner card (PREVIEW ON-SCREEN)
+        let summaryCardsHtml = `
+        <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:16px; margin-bottom:28px;">
+            <div style="background:#ffffff; border:1px solid var(--border); padding:16px; border-radius:12px; box-shadow:0 4px 6px rgba(0,0,0,0.01); border-left:4px solid var(--primary);">
+                <span style="font-size:10px; color:var(--text-muted); text-transform:uppercase; font-weight:700; letter-spacing:0.5px;">Inventario de Tienda</span>
+                <h4 style="font-size:22px; font-weight:800; color:var(--text); margin-top:4px;">$${grandTotalValue.toFixed(2)}</h4>
+                <p style="font-size:11px; color:var(--text-muted); margin-top:2px;">Valor total consolidado</p>
+            </div>
+            <div style="background:#ffffff; border:1px solid var(--border); padding:16px; border-radius:12px; box-shadow:0 4px 6px rgba(0,0,0,0.01); border-left:4px solid var(--accent-orange);">
+                <span style="font-size:10px; color:var(--text-muted); text-transform:uppercase; font-weight:700; letter-spacing:0.5px;">Capacidad Ocupada</span>
+                <h4 style="font-size:22px; font-weight:800; color:var(--text); margin-top:4px;">${grandTotalUnits} U.</h4>
+                <p style="font-size:11px; color:var(--text-muted); margin-top:2px;">Unidades totales colocadas</p>
+            </div>
+            <div style="background:#ffffff; border:1px solid var(--border); padding:16px; border-radius:12px; box-shadow:0 4px 6px rgba(0,0,0,0.01); border-left:4px solid #6366f1;">
+                <span style="font-size:10px; color:var(--text-muted); text-transform:uppercase; font-weight:700; letter-spacing:0.5px;">Diversidad de SKUs</span>
+                <h4 style="font-size:22px; font-weight:800; color:var(--text); margin-top:4px;">${grandUniqueSkus.size} SKUs</h4>
+                <p style="font-size:11px; color:var(--text-muted); margin-top:2px;">Referencias de productos activas</p>
+            </div>
+        </div>
+        `;
+
+        // Storewide summary table
+        let storewideRowsHtml = '';
+        Object.values(productStoreMap).forEach(item => {
+            storewideRowsHtml += `
+            <tr style="font-size:12px;">
+                <td style="padding:10px 12px; font-family:monospace; font-weight:600;">${item.sku}</td>
+                <td style="padding:10px 12px; font-weight:600;">${item.name}</td>
+                <td style="padding:10px 12px; color:var(--text-muted);">${item.category}</td>
+                <td style="padding:10px 12px; font-weight:700; color:var(--primary);">${item.totalUnits} U.</td>
+                <td style="padding:10px 12px;">$${item.price.toFixed(2)}</td>
+                <td style="padding:10px 12px; font-weight:700;">$${item.totalValue.toFixed(2)}</td>
+            </tr>`;
+        });
+
+        let consolidatedTableHtml = `
+        <div style="background:#ffffff; border:1px solid var(--border); border-radius:12px; overflow:hidden; box-shadow:0 4px 6px rgba(0,0,0,0.02); margin-top:12px;">
+            <div style="padding:14px 18px; border-bottom:1px solid var(--border); background:#f8fafc;">
+                <h4 style="font-size:14px; font-weight:700; color:var(--text);">Consolidado General de Tienda (Fulfillment)</h4>
+            </div>
+            <div style="padding:12px;">
+                <table class="report-table" style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background:#f1f5f9; border-bottom:2px solid var(--border);">
+                            <th style="padding: 10px 12px; text-align:left; font-size:10px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">SKU</th>
+                            <th style="padding: 10px 12px; text-align:left; font-size:10px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Producto</th>
+                            <th style="padding: 10px 12px; text-align:left; font-size:10px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Categoría</th>
+                            <th style="padding: 10px 12px; text-align:left; font-size:10px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Total Unidades</th>
+                            <th style="padding: 10px 12px; text-align:left; font-size:10px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Precio Unit.</th>
+                            <th style="padding: 10px 12px; text-align:left; font-size:10px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Valor Consolidado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${storewideRowsHtml || '<tr><td colspan="6" style="text-align:center; padding:20px; color:var(--text-muted);">Sin datos consolidados</td></tr>'}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        `;
+
+        content.innerHTML = summaryCardsHtml + html + consolidatedTableHtml;
+        section.style.display = 'block';
+        
+        // Scroll smoothly to report preview
+        setTimeout(() => section.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+
+        // Bind download PDF button
+        const downloadBtn = document.getElementById('btn-details-download-pdf');
+        downloadBtn.onclick = () => {
+            try {
+                downloadStoreDetailsPDF(store);
+            } catch (err) {
+                console.error("PDF generation error:", err);
+                alert("Error generando el PDF. Revisa la consola.");
+            }
+        };
+    }
+
+    function downloadStoreDetailsPDF(store) {
+        if (typeof window.jspdf === 'undefined') {
+            alert('Falta la librería jsPDF en la página.');
+            return;
+        }
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('p', 'pt', 'a4');
+        
+        let isFirstPage = true;
+        let grandTotalUnits = 0;
+        let grandTotalValue = 0;
+        let grandUniqueSkus = new Set();
+        const productStoreMap = {}; // SKU -> { sku, name, category, totalUnits, price, totalValue }
+
+        store.library.forEach((g, gIdx) => {
+            if (!isFirstPage) {
+                doc.addPage();
+            }
+            isFirstPage = false;
+
+            // Page Header with Locatel branding colors
+            doc.setFillColor(0, 150, 57);
+            doc.rect(0, 0, 595, 15, 'F');
+
+
+            doc.setFontSize(18);
+            doc.setTextColor(0, 150, 57);
+            doc.setFont('helvetica', 'bold');
+            doc.text('REPORTE TÉCNICO DE PLANOGRAMA', 40, 45);
+
+            doc.setFontSize(9);
+            doc.setTextColor(100, 100, 100);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Tienda: ${store.name.toUpperCase()} | Góndola ${gIdx + 1}: ${g.name.toUpperCase()} (${(g.config.type || 'pared').toUpperCase()})`, 40, 60);
+            doc.text(`Dimensiones: ${g.config.width}x${g.config.height}x${g.config.depth} cm | Fecha: ${new Date().toLocaleString()}`, 40, 72);
+
+            // Generate and Draw the 2D Graphic of this specific gondola
+            try {
+                const planogramImgData = generateGondola2DImage(g);
+                let imgW = 480;
+                let imgH = (g.config.height / g.config.width) * imgW;
+                
+                // Keep the image compact so the page fits beautiful schematics
+                if (imgH > 260) {
+                    imgH = 260;
+                    imgW = (g.config.width / g.config.height) * imgH;
+                }
+                const imgX = 40 + (515 - imgW) / 2; // Center horizontally
+                doc.addImage(planogramImgData, 'JPEG', imgX, 85, imgW, imgH);
+            } catch (err) {
+                console.error("Error generating gondola 2D image in PDF:", err);
+                doc.setTextColor(239, 68, 68);
+                doc.text("[Error cargando gráfico técnico frontal]", 40, 150);
+            }
+
+            // Build detailed table data for this specific gondola
+            const tableHead = [['Estante', 'SKU', 'Producto', 'Orientación', 'U. en Z', 'Total U.', 'Precio Unit.', 'Valor Total']];
+            const tableBody = [];
+            let gondolaTotalUnits = 0;
+            let gondolaTotalValue = 0;
+
+            g.config.shelves.forEach((s, sIdx) => {
+                const shelfProducts = [];
+                let shelfTotalUnits = 0;
+                let shelfTotalValue = 0;
+
+                s.products.forEach(p => {
+                    let layersToProcess = p.layers;
+                    if (!layersToProcess && p.productId) {
+                        layersToProcess = [{ productId: p.productId, facings: p.facings, orientation: p.orientation || 0 }];
+                    }
+                    if (!layersToProcess) return;
+
+                    layersToProcess.forEach(layer => {
+                        const product = state.getProductById(layer.productId);
+                        if (!product) return;
+
+                        const dims = state.getPlacedDimensions(layer.productId, layer.orientation || 0);
+                        const unitsInZ = Math.floor(g.config.shelfDepth / dims.depth);
+                        const totalUnits = layer.facings * unitsInZ;
+
+                        let existing = shelfProducts.find(x => x.sku === product.sku);
+                        if (!existing) {
+                            existing = { sku: product.sku, name: product.name, units: 0, price: product.price, totalValue: 0, orientation: layer.orientation || 0, unitsInZ };
+                            shelfProducts.push(existing);
+                        }
+                        existing.units += totalUnits;
+                        existing.totalValue += (totalUnits * product.price);
+
+                        shelfTotalUnits += totalUnits;
+                        shelfTotalValue += (totalUnits * product.price);
+
+                        gondolaTotalUnits += totalUnits;
+                        gondolaTotalValue += (totalUnits * product.price);
+                        grandUniqueSkus.add(product.sku);
+
+                        grandTotalUnits += totalUnits;
+                        grandTotalValue += (totalUnits * product.price);
+
+                        // Storewide map
+                        if (!productStoreMap[product.sku]) {
+                            productStoreMap[product.sku] = {
+                                sku: product.sku,
+                                name: product.name,
+                                category: product.category || 'Medicina',
+                                totalUnits: 0,
+                                price: product.price,
+                                totalValue: 0
+                            };
+                        }
+                        productStoreMap[product.sku].totalUnits += totalUnits;
+                        productStoreMap[product.sku].totalValue += (totalUnits * product.price);
+                    });
+                });
+
+                if (shelfProducts.length > 0) {
+                    const isPerchero = s.type === 'perchero';
+                    const levelName = isPerchero ? `Nivel ${sIdx + 1} (Perchero)` : `Nivel ${sIdx + 1} (Plancha)`;
+
+                    shelfProducts.forEach(data => {
+                        let orientLabel = 'Normal';
+                        if (data.orientation === 1) orientLabel = 'Lateral (XY)';
+                        else if (data.orientation === 2) orientLabel = 'Profundo (XZ)';
+                        else if (data.orientation === 3) orientLabel = 'Prof. Lateral';
+                        else if (data.orientation === 4) orientLabel = 'Superior (YZ)';
+                        else if (data.orientation === 5) orientLabel = 'Sup. Lateral';
+
+                        tableBody.push([
+                            levelName,
+                            data.sku,
+                            data.name,
+                            orientLabel,
+                            `${data.unitsInZ} U.`,
+                            `${data.units} U.`,
+                            `$${data.price.toFixed(2)}`,
+                            `$${data.totalValue.toFixed(2)}`
+                        ]);
+                    });
+
+                    // Add shelf subtotal row
+                    tableBody.push([
+                        `Subtotal ${levelName}`,
+                        '', '', '', '',
+                        `${shelfTotalUnits} U.`,
+                        '-',
+                        `$${shelfTotalValue.toFixed(2)}`
+                    ]);
+                }
+            });
+
+            // Add final Gondola Total row
+            tableBody.push([
+                `TOTAL GÓNDOLA: ${g.name.toUpperCase()}`,
+                '', '', '', '',
+                `${gondolaTotalUnits} U.`,
+                '-',
+                `$${gondolaTotalValue.toFixed(2)}`
+            ]);
+
+            // Draw AutoTable under schematic graphic
+            const tableStartY = Math.max(380, 85 + (g.config.height / g.config.width * 480 > 260 ? 260 : g.config.height / g.config.width * 480) + 15);
+            doc.autoTable({
+                head: tableHead,
+                body: tableBody,
+                startY: tableStartY,
+                theme: 'striped',
+                headStyles: { fillColor: [0, 150, 57], fontSize: 8 },
+                bodyStyles: { fontSize: 8 },
+                didParseCell: function(data) {
+                    const firstCell = data.row.cells[0];
+                    if (firstCell && firstCell.text && firstCell.text.length > 0) {
+                        const txt = firstCell.text[0] || '';
+                        if (txt.indexOf('TOTAL GÓNDOLA') !== -1 || txt.indexOf('Subtotal') !== -1) {
+                            data.cell.styles.fontStyle = 'bold';
+                            if (txt.indexOf('TOTAL GÓNDOLA') !== -1) {
+                                data.cell.styles.fillColor = [240, 253, 244];
+                                data.cell.styles.textColor = [0, 120, 40];
+                            }
+                        }
+                    }
+                }
+            });
+        });
+
+        // ==========================================
+        // PAGE LAST: GRAND STOREWIDE SUMMARY CONSOLIDATIONS
+        // ==========================================
+        doc.addPage();
+        
+        // Green top bar
+        doc.setFillColor(0, 150, 57);
+        doc.rect(0, 0, 595, 15, 'F');
+
+        // Header Title
+        doc.setFontSize(22);
+        doc.setTextColor(0, 150, 57);
+        doc.setFont('helvetica', 'bold');
+        doc.text('CONSOLIDADO GENERAL DE TIENDA', 40, 48);
+
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Tienda: ${store.name.toUpperCase()} | Total Góndolas Planificadas: ${store.library.length}`, 40, 64);
+        doc.text(`Generado por: Planogram Pro Retail Analytics Suite | Fecha: ${new Date().toLocaleString()}`, 40, 76);
+
+        // Draw Premium Stats boxes
+        // Stats 1: Inventory Value
+        doc.setFillColor(243, 244, 246);
+        doc.setDrawColor(229, 231, 235);
+        doc.rect(40, 95, 160, 60, 'FD');
+        doc.setFontSize(8);
+        doc.setTextColor(100, 100, 100);
+        doc.text('VALOR INVENTARIO CONSOLIDADO', 50, 112);
+        doc.setFontSize(16);
+        doc.setTextColor(0, 150, 57);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`$${grandTotalValue.toFixed(2)}`, 50, 138);
+
+        // Stats 2: Total Units
+        doc.setFillColor(243, 244, 246);
+        doc.rect(217, 95, 160, 60, 'FD');
+        doc.setFontSize(8);
+        doc.setTextColor(100, 100, 100);
+        doc.setFont('helvetica', 'normal');
+        doc.text('CAPACIDAD DE STOCK TOTAL', 227, 112);
+        doc.setFontSize(16);
+        doc.setTextColor(255, 184, 28); // Locatel Accent Yellow/Orange
+        doc.setFont('helvetica', 'bold');
+        doc.text(`${grandTotalUnits} Unidades`, 227, 138);
+
+        // Stats 3: SKUs Count
+        doc.setFillColor(243, 244, 246);
+        doc.rect(395, 95, 160, 60, 'FD');
+        doc.setFontSize(8);
+        doc.setTextColor(100, 100, 100);
+        doc.setFont('helvetica', 'normal');
+        doc.text('DIVERSIDAD DE REFERENCIAS (SKUs)', 405, 112);
+        doc.setFontSize(16);
+        doc.setTextColor(99, 102, 241);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`${grandUniqueSkus.size} SKUs Únicos`, 405, 138);
+
+        // Draw Consolidate Table headers
+        const summaryHead = [['SKU', 'Producto', 'Categoría', 'Precio Unitario', 'Total Unidades', 'Valor Consolidado']];
+        const summaryBody = [];
+        
+        Object.values(productStoreMap).forEach(item => {
+            summaryBody.push([
+                item.sku,
+                item.name,
+                item.category,
+                `$${item.price.toFixed(2)}`,
+                `${item.totalUnits} U.`,
+                `$${item.totalValue.toFixed(2)}`
+            ]);
+        });
+
+        // Final grand totals row
+        summaryBody.push([
+            'TOTAL TIENDA CONSOLIDADO',
+            '', '', '',
+            `${grandTotalUnits} U.`,
+            `$${grandTotalValue.toFixed(2)}`
+        ]);
+
+        doc.autoTable({
+            head: summaryHead,
+            body: summaryBody,
+            startY: 175,
+            theme: 'grid',
+            headStyles: { fillColor: [31, 41, 55], fontSize: 9 }, // Sleek dark gray header for consolidated inventory
+            bodyStyles: { fontSize: 8.5 },
+            didParseCell: function(data) {
+                const firstCell = data.row.cells[0];
+                if (firstCell && firstCell.text && firstCell.text.length > 0) {
+                    const txt = firstCell.text[0] || '';
+                    if (txt.indexOf('TOTAL TIENDA CONSOLIDADO') !== -1) {
+                        data.cell.styles.fontStyle = 'bold';
+                        data.cell.styles.fillColor = [243, 244, 246];
+                        data.cell.styles.textColor = [16, 185, 129];
+                    }
+                }
+            }
+        });
+
+        doc.save(`Reporte_Consolidado_Tienda_${store.name.replace(/\s+/g, '_')}_${Date.now()}.pdf`);
+    }
+
     function generateReport() {
         const reportContent = document.getElementById('report-content');
         let html = '<table class="report-table" id="report-table" style="width: 100%; border-collapse: collapse;"><thead><tr style="background: var(--primary); color: white;"><th>SKU</th><th>Nombre</th><th>Cantidad</th><th>Precio Unit.</th><th>Valor Total</th></tr></thead><tbody>';
@@ -1269,7 +2034,25 @@ document.addEventListener('DOMContentLoaded', () => {
         reportContent.innerHTML = html;
     }
 
-    function generateGondola2DImage() {
+    function generateGondola2DImage(gondolaOverride = null) {
+        const originalGondola = state.gondola;
+        let tempGondola = null;
+        let tempName = 'Góndola';
+        
+        if (gondolaOverride) {
+            if (gondolaOverride.config) {
+                tempGondola = gondolaOverride.config;
+                tempName = gondolaOverride.name || 'Góndola';
+            } else {
+                tempGondola = gondolaOverride;
+                tempName = gondolaOverride.name || 'Góndola';
+            }
+            state.gondola = tempGondola;
+        } else {
+            const activeGondola = state.library.find(p => p.id === state.currentGondolaId);
+            tempName = activeGondola ? activeGondola.name : 'Góndola';
+        }
+
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         const g = state.gondola;
@@ -1305,8 +2088,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, canvasW, canvasH);
         
-        const activeGondola = state.library.find(p => p.id === state.currentGondolaId);
-        const gondolaName = activeGondola ? activeGondola.name : 'Góndola';
+        const gondolaName = tempName;
 
         // 1. Draw Title
         ctx.fillStyle = '#1e293b';
@@ -1453,11 +2235,27 @@ document.addEventListener('DOMContentLoaded', () => {
             const isPerchero = s.type === 'perchero';
             const sYCanvas = gondolaY + gondolaH - (s.y * scale);
             const shelfThicknessPx = (isPerchero ? 1 : g.shelfThickness) * scale;
-            
             if (isPerchero) {
                 // Perchero bar
                 ctx.fillStyle = '#475569';
                 ctx.fillRect(gondolaX, sYCanvas - shelfThicknessPx, availableW, shelfThicknessPx);
+
+                // Draw static hook points on 2D canvas
+                const spacing = s.hookSpacing || 15;
+                const numHooks = Math.floor(g.width / spacing);
+                const margin = (g.width - (numHooks - 1) * spacing) / 2;
+                
+                ctx.strokeStyle = '#64748b';
+                ctx.lineWidth = 2;
+                for (let i = 0; i < numHooks; i++) {
+                    const hX = gondolaX + (margin + i * spacing) * scale;
+                    // Draw a small metallic hook node
+                    ctx.beginPath();
+                    ctx.arc(hX, sYCanvas, 1.5, 0, Math.PI * 2);
+                    ctx.fillStyle = '#cbd5e1';
+                    ctx.fill();
+                    ctx.stroke();
+                }
             } else {
                 // Premium steel gradient for plancha shelf
                 const shelfGrad = ctx.createLinearGradient(0, sYCanvas - shelfThicknessPx, 0, sYCanvas);
@@ -1557,6 +2355,9 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.lineWidth = 1;
         ctx.strokeRect(0, 0, canvasW, canvasH);
         
+        if (gondolaOverride) {
+            state.gondola = originalGondola;
+        }
         return canvas.toDataURL('image/jpeg', 0.95);
     }
 
