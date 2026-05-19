@@ -50,12 +50,5 @@
 
 ---
 
-## Instalación y Ejecución
-No requiere compilación ni servidores complejos.
-1. Clona el repositorio o descarga los archivos.
-2. Abre el archivo `index.html` en cualquier navegador moderno (Chrome, Edge, Firefox).
-
----
-
 ## Licencia
 Desarrollado para fines de gestión de inventario y optimización de espacios retail.
